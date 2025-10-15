@@ -308,69 +308,46 @@ export default {
       }
     },
 
-    // --- JSONPリクエスト (安全版)
+    // --- fetchのみ（JSONのみ対応）
     async fetchVideoData(id) {
       const maxRetries = 3;
+      if (!id) {
+        this.video = null;
+        this.error = "動画IDが指定されていません。";
+        return;
+      }
 
-      const jsonpRequest = (url, timeout = 30000) => {
-        return new Promise((resolve, reject) => {
-          // 👇 短く安全な callback 名
-          const cbName = "jp" + Math.random().toString(36).slice(2, 6);
-          let timeoutId;
-
-          window[cbName] = (data) => {
-            clearTimeout(timeoutId);
-            resolve(data);
-            cleanup();
-          };
-
-          const script = document.createElement("script");
-          const sep = url.includes("?") ? "&" : "?";
-          script.src = `${url}${sep}callback=${cbName}`;
-
-          script.onerror = () => {
-            clearTimeout(timeoutId);
-            reject(new Error("script error"));
-            cleanup();
-          };
-
-          function cleanup() {
-            try {
-              if (script.parentNode) script.parentNode.removeChild(script);
-            } catch (e) {}
-            try {
-              delete window[cbName];
-            } catch (e) {
-              window[cbName] = undefined;
-            }
-          }
-
-          timeoutId = setTimeout(() => {
-            reject(new Error("timeout"));
-            cleanup();
-          }, timeout);
-
-          document.body.appendChild(script);
-        });
-      };
+      const baseUrl = `${apiurl()}?video=${encodeURIComponent(id)}`;
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
           this.video = null;
           this.error = null;
 
-          // 👇 video パラメータをエンコード
-          const url = `${apiurl()}?video=${encodeURIComponent(id)}`;
-          const data = await jsonpRequest(url, 30000);
+          // 指示通りの形で fetch を呼ぶ
+          const res = await fetch(`${baseUrl}`);
+
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+
+          const ct = (res.headers.get("content-type") || "").toLowerCase();
+          if (!ct.includes("application/json") && !ct.includes("text/json")) {
+            this.error = "動画APIはJSONを返しませんでした";
+            this.video = null;
+            return;
+          }
+
+          const data = await res.json();
           this.video = data;
           return;
         } catch (err) {
-          console.error(`取得失敗 (試行 ${attempt}/${maxRetries}):`, err);
+          console.error(`fetchVideoData 取得失敗 (試行 ${attempt}/${maxRetries}):`, err);
           if (attempt < maxRetries) {
             await new Promise((r) => setTimeout(r, 500));
-          } else {
-            this.error = "動画情報を取得できませんでした。";
+            continue;
           }
+          this.error = "動画情報を取得できませんでした。";
         }
       }
     },

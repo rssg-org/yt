@@ -49,47 +49,40 @@ export default {
     },
   },
   methods: {
-    fetchSearchResults(q) {
+    async fetchSearchResults(q) {
       this.loading = true;
       this.error = null;
 
-      const cbName = 'jsonp_search_' + Math.random().toString(36).slice(2, 10);
-      let timeoutId;
+      const baseUrl = `${apiurl()}?q=${encodeURIComponent(q)}`;
 
-      window[cbName] = (data) => {
-        clearTimeout(timeoutId);
-        try {
-          this.videos = (data && data.results) ? data.results : [];
-        } catch (e) {
-          this.error = '検索結果の解析に失敗しました';
+      try {
+        // 指示通り fetch をこの形で呼ぶ
+        const res = await fetch(`${baseUrl}`);
+
+        if (!res.ok) {
+          this.error = `検索APIの取得に失敗しました (HTTP ${res.status})`;
+          this.videos = [];
+          return;
         }
-        this.loading = false;
-        cleanup();
-      };
 
-      const script = document.createElement('script');
-      script.src = `${apiurl()}?q=${encodeURIComponent(q)}&callback=${cbName}`;
-      script.onerror = () => {
-        clearTimeout(timeoutId);
-        this.loading = false;
-        this.error = '検索APIの取得に失敗しました (script error)';
-        cleanup();
-      };
+        const ct = (res.headers.get("content-type") || "").toLowerCase();
+        if (!ct.includes("application/json") && !ct.includes("text/json")) {
+          this.error = "検索APIはJSONを返しませんでした";
+          this.videos = [];
+          return;
+        }
 
-      function cleanup() {
-        if (script.parentNode) script.parentNode.removeChild(script);
-        try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
+        const data = await res.json();
+        this.videos = Array.isArray(data.results) ? data.results : (Array.isArray(data) ? data : []);
+      } catch (e) {
+        this.error = "検索APIの取得に失敗しました";
+        console.warn("fetch error:", e);
+        this.videos = [];
+      } finally {
+        this.loading = false;
       }
-
-      timeoutId = setTimeout(() => {
-        this.loading = false;
-        this.error = '検索APIの取得に失敗しました (タイムアウト)';
-        cleanup();
-      }, 30000);
-
-      document.body.appendChild(script);
     },
-  },
+     },
 };
 </script>
 
