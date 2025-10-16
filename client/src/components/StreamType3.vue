@@ -89,39 +89,89 @@ function closePopup() {
 async function fetchStream() {
   loading.value = true;
   error.value = "";
+  let fetched = false;
+  const jsonUrl = `https://script.google.com/macros/s/AKfycbwUuvKAcomprFysE2SFaZrPTHB6Rmhi0ptjQYHzWnoOGyIMA8gMKcOEW_Nz11u695Xv_Q/exec?id=${props.videoId}`;
   try {
-    const res = await fetch(`https://script.google.com/macros/s/AKfycbwUuvKAcomprFysE2SFaZrPTHB6Rmhi0ptjQYHzWnoOGyIMA8gMKcOEW_Nz11u695Xv_Q/exec?id=${props.videoId}`);
-    if (!res.ok) throw new Error(res.statusText);
-    const data = await res.json();
-    streamData.value = data;
+    const res = await fetch(jsonUrl, { credentials: "omit" });
+    if (res.ok && res.headers.get("content-type")?.includes("application/json")) {
+      const data = await res.json();
+      streamData.value = data;
+      fetched = true;
 
-    // 標準（360p）複数対応
-    muxed360pList.value = [];
-    if (Array.isArray(data["audio&video"])) {
-      muxed360pList.value = data["audio&video"].filter(v => v.resolution === "360p").map(v => ({ url: v.url }));
-      // 360pがなければ全て
-      if (muxed360pList.value.length === 0) {
-        muxed360pList.value = data["audio&video"].map(v => ({ url: v.url }));
+      muxed360pList.value = [];
+      if (Array.isArray(data["audio&video"])) {
+        muxed360pList.value = data["audio&video"].filter(v => v.resolution === "360p").map(v => ({ url: v.url }));
+        if (muxed360pList.value.length === 0) {
+          muxed360pList.value = data["audio&video"].map(v => ({ url: v.url }));
+        }
       }
-    }
 
-    // 音声のみ複数対応
-    audioOnlyList.value = [];
-    if (Array.isArray(data["audio only"])) {
-      audioOnlyList.value = data["audio only"].map(v => ({ ext: v.ext, url: v.url }));
-    }
+      // 音声のみ
+      audioOnlyList.value = [];
+      if (Array.isArray(data["audio only"])) {
+        audioOnlyList.value = data["audio only"].map(v => ({ ext: v.ext, url: v.url }));
+      }
 
-    // 映像のみ複数対応
-    videoOnlyList.value = [];
-    if (Array.isArray(data["video only"])) {
-      videoOnlyList.value = data["video only"].map(v => ({ resolution: v.resolution, ext: v.ext, url: v.url }));
+      // 映像のみ
+      videoOnlyList.value = [];
+      if (Array.isArray(data["video only"])) {
+        videoOnlyList.value = data["video only"].map(v => ({ resolution: v.resolution, ext: v.ext, url: v.url }));
+      }
+    } else {
+      throw new Error("Not JSON");
     }
   } catch (e) {
-    console.error(e);
-    error.value = "ストリームの取得に失敗しました";
-  } finally {
-    loading.value = false;
+    if (fetched) return;
+    const cbName = "jsonp_stream_" + Math.random().toString(36).slice(2, 10);
+    let timeoutId;
+    window[cbName] = function(data) {
+      clearTimeout(timeoutId);
+      streamData.value = data;
+
+      muxed360pList.value = [];
+      if (Array.isArray(data["audio&video"])) {
+        muxed360pList.value = data["audio&video"].filter(v => v.resolution === "360p").map(v => ({ url: v.url }));
+        if (muxed360pList.value.length === 0) {
+          muxed360pList.value = data["audio&video"].map(v => ({ url: v.url }));
+        }
+      }
+
+      // 音声のみ
+      audioOnlyList.value = [];
+      if (Array.isArray(data["audio only"])) {
+        audioOnlyList.value = data["audio only"].map(v => ({ ext: v.ext, url: v.url }));
+      }
+
+      // 映像のみ
+      videoOnlyList.value = [];
+      if (Array.isArray(data["video only"])) {
+        videoOnlyList.value = data["video only"].map(v => ({ resolution: v.resolution, ext: v.ext, url: v.url }));
+      }
+
+      loading.value = false;
+      cleanup();
+    };
+    function cleanup() {
+      try { if (script.parentNode) script.parentNode.removeChild(script); } catch (e) {}
+      try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
+    }
+    const script = document.createElement("script");
+    script.src = `${jsonUrl}&callback=${cbName}`;
+    script.onerror = function() {
+      clearTimeout(timeoutId);
+      loading.value = false;
+      error.value = "ストリームの取得に失敗しました (script error)";
+      cleanup();
+    };
+    timeoutId = setTimeout(() => {
+      loading.value = false;
+      error.value = "ストリームの取得に失敗しました (タイムアウト)";
+      cleanup();
+    }, 30000);
+    document.body.appendChild(script);
+    return;
   }
+  loading.value = false;
 }
 </script>
 

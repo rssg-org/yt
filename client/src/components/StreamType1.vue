@@ -37,47 +37,67 @@ function fetchStreamUrl(id) {
   error.value = "";
   loading.value = true;
 
-  // ランダムなコールバック関数名を生成
-  const cbName = "jsonp_cb_" + Math.random().toString(36).slice(2, 10);
+  const jsonUrl = `${apiurl()}?stream=${id}`;
+  let fetched = false;
 
-  // タイムアウト用
-  let timeoutId;
+  fetch(jsonUrl, { credentials: "omit" })
+    .then(res => {
+      if (res.ok && res.headers.get("content-type")?.includes("application/json")) {
+        return res.json();
+      }
+      throw new Error("Not JSON");
+    })
+    .then(data => {
+      loading.value = false;
+      if (data && data.url) {
+        streamUrl.value = data.url;
+      } else {
+        error.value = "ストリームURLが空です (JSON)";
+      }
+      fetched = true;
+    })
+    .catch(() => {
+      if (fetched) return;
 
-  // コールバック関数をwindowに登録
-  window[cbName] = function(data) {
-    clearTimeout(timeoutId);
-    loading.value = false;
-    if (data && data.url) {
-      streamUrl.value = data.url;
-    } else {
-      error.value = "ストリームURLが空です (JSONP)";
-    }
-    cleanup();
-  };
+      // ランダムなコールバック関数名を生成
+      const cbName = "jsonp_cb_" + Math.random().toString(36).slice(2, 10);
 
-  // クリーンアップ関数
-  function cleanup() {
-    if (script.parentNode) script.parentNode.removeChild(script);
-    delete window[cbName];
-  }
+      // タイムアウト用
+      let timeoutId;
 
-  // タイムアウト処理
-  timeoutId = setTimeout(() => {
-    loading.value = false;
-    error.value = "ストリームURLの取得に失敗しました (タイムアウト)";
-    cleanup();
-  }, 30000); // 30秒
+      // コールバック関数をwindowに登録
+      window[cbName] = function(data) {
+        clearTimeout(timeoutId);
+        loading.value = false;
+        if (data && data.url) {
+          streamUrl.value = data.url;
+        } else {
+          error.value = "ストリームURLが空です (JSONP)";
+        }
+        cleanup();
+      };
 
-  // scriptタグ生成
-  const script = document.createElement("script");
-  script.src = `${apiurl()}?stream=${id}&callback=${cbName}`;
-  script.onerror = function() {
-    clearTimeout(timeoutId);
-    loading.value = false;
-    error.value = "ストリームURLの取得に失敗しました (script error)";
-    cleanup();
-  };
-  document.body.appendChild(script);
+      function cleanup() {
+        if (script.parentNode) script.parentNode.removeChild(script);
+        delete window[cbName];
+      }
+
+      timeoutId = setTimeout(() => {
+        loading.value = false;
+        error.value = "ストリームURLの取得に失敗しました (タイムアウト)";
+        cleanup();
+      }, 60000); 
+
+      const script = document.createElement("script");
+      script.src = `${jsonUrl}&callback=${cbName}`;
+      script.onerror = function() {
+        clearTimeout(timeoutId);
+        loading.value = false;
+        error.value = "ストリームURLの取得に失敗しました (script error)";
+        cleanup();
+      };
+      document.body.appendChild(script);
+    });
 }
 
 watch(

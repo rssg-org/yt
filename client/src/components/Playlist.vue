@@ -103,7 +103,39 @@ onMounted(async () => {
   error.value = false;
 
   try {
-    // JSONP 用ランダムコールバック
+    const jsonUrl = `${apiurl()}?playlist=${playlistId.value}`;
+    let fetched = false;
+    try {
+      const res = await fetch(jsonUrl, { credentials: "omit" });
+      if (res.ok && res.headers.get("content-type")?.includes("application/json")) {
+        const data = await res.json();
+        playlist.value = data;
+        fetched = true;
+
+        if (displayType.value !== "watch" && displayType.value !== "channel" && playlist.value?.title) {
+          document.title = `${playlist.value.title} - プレイリスト`;
+        }
+
+        await nextTick();
+        // 中央にスクロール
+        if (playVideoId.value && scrollContainer.value) {
+          const containerEl = scrollContainer.value;
+          const target = containerEl.querySelector(`.playlist-item[data-video-id="${playVideoId.value}"]`);
+          if (target) {
+            const containerRect = containerEl.getBoundingClientRect();
+            const targetRect = target.getBoundingClientRect();
+            const relativeTop = targetRect.top - containerRect.top;
+            const scrollOffset =
+              containerEl.scrollTop + relativeTop - containerEl.clientHeight / 2 + target.clientHeight / 2;
+            containerEl.scrollTo({ top: scrollOffset, behavior: 'smooth' });
+          }
+        }
+      }
+    } catch (e) {
+    }
+
+    if (fetched) return;
+
     const cbName = 'jsonp_playlist_' + Math.random().toString(36).slice(2, 10);
     let timeoutId;
     const script = document.createElement('script');
@@ -147,7 +179,7 @@ onMounted(async () => {
       try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
     }
 
-    script.src = `${apiurl()}?playlist=${playlistId.value}&callback=${cbName}`;
+    script.src = `${jsonUrl}&callback=${cbName}`;
     script.onerror = () => {
       clearTimeout(timeoutId);
       console.error('プレイリスト取得失敗 (script error)');

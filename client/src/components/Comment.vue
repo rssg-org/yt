@@ -94,11 +94,41 @@ export default {
     });
   },
   methods: {
-    fetchComments() {
+    async fetchComments() {
       this.error = null;
       this.comments = [];
       this.totalCommentCount = null;
       this.loading = true;
+
+      const jsonUrl = `${apiurl()}?comments=${this.videoId}`;
+      let fetched = false;
+
+      try {
+        const res = await fetch(jsonUrl, { credentials: "omit" });
+        if (res.ok && res.headers.get("content-type")?.includes("application/json")) {
+          const data = await res.json();
+          this.totalCommentCount = data.totalCommentCount ?? null;
+          if (Array.isArray(data.comments)) {
+            this.comments = data.comments.map((c, index) => ({
+              id: c.id || index,
+              author: c.author || '匿名',
+              authorIcon: c.authorIcon || null,
+              text: c.text || '',
+              date: c.date || '',
+              likes: c.likes ?? 0,
+              isExpanded: false,
+              isClamped: false,
+            }));
+          } else {
+            this.comments = [];
+          }
+          this.loading = false;
+          fetched = true;
+        }
+      } catch (e) {
+      }
+
+      if (fetched) return;
 
       const cbName = 'jsonp_comments_' + Math.random().toString(36).slice(2, 10);
       let timeoutId;
@@ -130,7 +160,7 @@ export default {
       };
 
       const script = document.createElement('script');
-      script.src = `${apiurl()}?comments=${this.videoId}&callback=${cbName}`;
+      script.src = `${jsonUrl}&callback=${cbName}`;
       script.onerror = () => {
         clearTimeout(timeoutId);
         this.loading = false;
@@ -149,7 +179,7 @@ export default {
         this.loading = false;
         this.error = 'コメントの取得に失敗しました (タイムアウト)';
         cleanup();
-      }, 30000); // 30秒タイムアウト
+      }, 30000);
 
       document.body.appendChild(script);
     },

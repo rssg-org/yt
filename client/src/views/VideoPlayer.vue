@@ -148,7 +148,10 @@
         </li>
       </ul>
     </aside>
-    <p v-else-if="error" class="error-msg">⚠️ {{ error }}<br><router-link :to="`/watch?v=${videoid}`">再読み込み</router-link></p>
+    <div v-else-if="error" class="error-msg">
+      ⚠️ {{ error }}<br>
+      <button class="reload-btn" @click="reloadVideo">再取得</button>
+    </div>
     <p v-else class="loading-msg">読み込み中...</p>
   </div>
 </template>
@@ -324,7 +327,6 @@ export default {
           this.video = null;
           this.error = null;
 
-          // 指示通りの形で fetch を呼ぶ
           const res = await fetch(`${baseUrl}`);
 
           if (!res.ok) {
@@ -340,6 +342,10 @@ export default {
 
           const data = await res.json();
           this.video = data;
+          // 関連動画がない場合はエラーをセット
+          if (!Array.isArray(data.related) || data.related.length === 0) {
+            this.error = "関連動画が見つかりませんでした。";
+          }
           return;
         } catch (err) {
           console.error(`fetchVideoData 取得失敗 (試行 ${attempt}/${maxRetries}):`, err);
@@ -351,7 +357,9 @@ export default {
         }
       }
     },
-
+    reloadVideo() {
+      this.fetchVideoData(this.videoId);
+    },
     getPrimaryThumbnail(id) {
       return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
     },
@@ -701,6 +709,21 @@ p {
 .loading-msg {
   font-size: 1rem;
   color: #444;
+}
+
+.reload-btn {
+  padding: 10px 24px;
+  background: #444;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1em;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: background 0.2s;
+}
+.reload-btn:hover {
+  background: #666;
 }
 
 @media (max-width: 999px) {
