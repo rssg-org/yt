@@ -351,7 +351,8 @@ watch(repeatEnabled, (newVal) => {
 });
 
 
-function fetchStreamUrl(id) {
+// JSON専用 fetch に変更
+async function fetchStreamUrl(id) {
   error.value = "";
   sources.value = {};
   selectedQuality.value = "";
@@ -360,13 +361,20 @@ function fetchStreamUrl(id) {
   availableQualities.value = [];
   loading.value = true;
 
-  // ランダムなコールバック関数名を生成
-  const cbName = "jsonp_cb2_" + Math.random().toString(36).slice(2, 10);
-  let timeoutId;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-  window[cbName] = function(data) {
+  try {
+    const url = `${apiurl()}?stream2=${encodeURIComponent(id)}`;
+    const res = await fetch(url, { signal: controller.signal, credentials: 'same-origin' });
     clearTimeout(timeoutId);
     loading.value = false;
+    if (!res.ok) {
+      error.value = "ストリームURLの取得に失敗しました (HTTP " + res.status + ")";
+      return;
+    }
+    const data = await res.json();
+
     try {
       let srcs = {};
       let qualities = [];
@@ -486,33 +494,17 @@ function fetchStreamUrl(id) {
         }
       });
     } catch (e) {
-      error.value = "ストリームURLの取得に失敗しました (JSONP)";
+      error.value = "ストリームURLの解析に失敗しました (JSON)";
     }
-    cleanup();
-  };
-
-  function cleanup() {
-    if (script.parentNode) script.parentNode.removeChild(script);
-    delete window[cbName];
-    try { cancelAutoplay(); } catch (e) {}
-    try { detachBufferListeners(); } catch (e) {}
-  }
-
-  timeoutId = setTimeout(() => {
-    loading.value = false;
-    error.value = "ストリームURLの取得に失敗しました (タイムアウト)";
-    cleanup();
-  }, 30000);
-
-  const script = document.createElement("script");
-  script.src = `${apiurl()}?&stream2=${id}&callback=${cbName}`;
-  script.onerror = function() {
+  } catch (e) {
     clearTimeout(timeoutId);
     loading.value = false;
-    error.value = "ストリームURLの取得に失敗しました (script error)";
-    cleanup();
-  };
-  document.body.appendChild(script);
+    if (e && e.name === 'AbortError') {
+      error.value = "ストリームURLの取得に失敗しました (タイムアウト)";
+    } else {
+      error.value = "ストリームURLの取得に失敗しました (fetch error)";
+    }
+  }
 }
 
 watch(
@@ -564,7 +556,6 @@ watch(selectedQuality, () => {
     }, 1000);
     return;
   }
-  // その他: videourl同期再生
   if (sources.value[selectedQuality.value]) {
     isQualitySwitching.value = true;
     setTimeout(() => {
@@ -655,7 +646,6 @@ onMounted(() => {
   if (videoRef.value) {
     videoRef.value.addEventListener('mousemove', showSettingsBox);
     videoRef.value.addEventListener('click', showSettingsBox);
-    // その他設定を反映
     applyRepeatAndAutoplay();
   }
 

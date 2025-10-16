@@ -147,22 +147,30 @@ export function setupSyncPlayback(video, audio, sources, selectedQuality, diffTe
         jumpAudioToVideo();
         return;
       }
-      if (abs < 0.01) {
-        audio.playbackRate = 1.0;
-      } else if (abs < 0.1) {
-        audio.playbackRate = diff > 0 ? 1.02 : 0.98;
-      } else if (abs < 1.5) {
-        audio.playbackRate = diff > 0 ? 1.06 : 0.94;
-      } else if (abs < 2.0) {
-        audio.playbackRate = diff > 0 ? 1.1 : 0.9;
-      } else {
-        audio.playbackRate = 1.0;
-        jumpAudioToVideo();
-      }
-      if (abs < 0.015) {
-        audio.playbackRate = selectedPlaybackRate.value;
-        return;
-      }
+    if (abs < 0.01) {
+      audio.playbackRate = selectedPlaybackRate.value;
+    } else if (abs < 0.05) {
+      const adjust = diff > 0 ? 1.01 : 0.99;
+      audio.playbackRate = selectedPlaybackRate.value * adjust;
+    } else if (abs < 0.1) {
+      const adjust = diff > 0 ? 1.02 : 0.98;
+      audio.playbackRate = selectedPlaybackRate.value * adjust;
+    } else if (abs < 1.5) {
+      const adjust = diff > 0 ? 1.06 : 0.94;
+      audio.playbackRate = selectedPlaybackRate.value * adjust;
+    } else if (abs < 2.0) {
+      const adjust = diff > 0 ? 1.1 : 0.9;
+      audio.playbackRate = selectedPlaybackRate.value * adjust;
+    } else {
+      audio.playbackRate = selectedPlaybackRate.value;
+      jumpAudioToVideo();
+    }
+
+    // ±15ms以下なら補正リセット
+    if (abs < 0.015) {
+      audio.playbackRate = selectedPlaybackRate.value;
+      return;
+    }
       const adjustmentRatio = abs / 1.5;
       const rateAdjust = 1 + adjustmentRatio * maxAdjust * (diff > 0 ? 1 : -1);
       audio.playbackRate = selectedPlaybackRate.value * rateAdjust;
