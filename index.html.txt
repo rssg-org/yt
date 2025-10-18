@@ -13,8 +13,8 @@
       background-color: white;
     }
     </style>
-    <script type="module" crossorigin src="https://cdn.jsdelivr.net/gh/ajgpw/youtube@main/client/dist/assets/index-4cG6kjSL.js"></script>
-    <link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/ajgpw/youtube@main/client/dist/assets/index-C7JsU2ec.css">
+    <script type="module" crossorigin src="https://cdn.jsdelivr.net/gh/rssg-org/yt@main/client/dist/assets/index-4cG6kjSL.js"></script>
+    <link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/rssg-org/yt@main/client/dist/assets/index-C7JsU2ec.css">
   </head>
   <body>
     <div id="app"></div>    
