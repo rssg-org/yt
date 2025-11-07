@@ -8,7 +8,8 @@ const API_URLS = [
   "https://script.google.com/macros/s/AKfycbzYHLmomiijxiaNGcdLY_ddDZIi3QTK408EQDEpsa82FtIt4VTGRuC8ovZxM7kUSrC2/exec",
   "https://script.google.com/macros/s/AKfycbygQyKvfPnMvY8sdOkKow6NzO91dBhQFy0Vex3qVq1tWnqKodNbFVKQhALWWBLXcRTF/exec",
   "https://script.google.com/macros/s/AKfycbyh11OPhy_xaZOPVz3uKVFy8qdN05hVRrpKrNXuIeogsTLwiQQYBUhKZMniStVhg7QF-A/exec",
-  "https://script.google.com/macros/s/AKfycbyjbFpmnhvs0BSorjNuIoZkIOsiH7OsovlYkl3DBI9SA3_19jOBqjr999WA_12HYxhT0A/exec"
+  "https://script.google.com/macros/s/AKfycbyjbFpmnhvs0BSorjNuIoZkIOsiH7OsovlYkl3DBI9SA3_19jOBqjr999WA_12HYxhT0A/exec",
+  "https://script.google.com/macros/s/AKfycbzm1xAoCAuYyeNKpKSB_ENMaYXmK1h60PjGk3TlWkXSnFUVtgKnShRmRk1WoElwPGJ_-Q/exec"
 ];
 
 // ランダムに1つ返す関数
